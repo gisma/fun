@@ -1,0 +1,378 @@
+#'@name initGrass4W
+#'
+#'@title initializes enviroment for using rgrass7 with GRASS 
+#'
+#'@description Function that initializes environment and pathes for GRASS7 .
+#'             *NOTE* you probably have to customize some settings according to your personal installation folders.
+#'@details The concept is very straightforward but for an all days usage pretty helpful. You need to provide a GDAL conform raster file, a \link{raster} object or you may download SRTM data with \link{getGeoData}. This settings will be used to initialize a temporary but static \href{https://cran.r-project.org/web/packages/rgrass7}{rgrass7} environment. Additionally \href{https://cran.r-project.org/web/packages/RSAGA}{RSAGA} and \href{https://cran.r-project.org/web/packages/gdalUtils}{gdalUtils} are initialized and checked. During the rsession you will have full access to GRASS7 via the wrapper packages. .
+#'
+#'@usage initGrass4W()
+#'
+#'@param x raster or sp object 
+#'@param setDefaultGrass default = NULL wil force a search for GRASS You may provide a valid combination as c("C:\\OSGeo4W64","grass-7.0.5","osgeo4w")
+#'
+#'@author Chris Reudenbach
+#'
+#'
+#'@return initGrass4W initializes the usage of GRASS7.
+#'
+#'@export initGrass4W
+#'
+#'@examples
+#'####  GRASS bindings from R
+#'
+#' # get meuse data
+#' data(meuse)
+#' coordinates(meuse) <- ~x+y
+#' proj4string(meuse) <- CRS("+init=epsg:28992")
+#' 
+#' # automatic search and find of GRASS binaries if more than one you have to choose.
+#' initGrass4W(meuse)
+#' 
+#' # assuming a typical standalone installation
+#' initGrass4W(meuse,c("C:\\Program Files\\GRASS GIS 7.0.5","GRASS GIS 7.0.5","NSIS"))
+#' 
+#' # assuming a typical OSGeo4W installation
+#' initGrass4W(meuse,c("C:\\OSGeo4W64","grass-7.0.5","osgeo4W"))
+#' 
+
+
+
+initGrass4W <- function(x=NULL,setDefaultGrass=NULL){
+  
+  
+  if (is.null(x)) {
+    stop("no information from raster data neither rasterParam ")
+  } else {
+    type<-getSimpleClass(x)
+    if (type=="rst") {
+      resolution <- raster::res(x)[1]
+      proj4 <- as.character(x@crs)
+      ymax<-x@extent@ymax
+      ymin<-x@extent@ymin
+      xmax<-x@extent@xmax
+      xmin<-x@extent@xmin
+    } else {
+      # i do not understand all this class stuff :-(
+      s<-x@proj4string
+      s<-s@projargs
+      s2<-(strsplit(s,split = " "))
+      proj4<- paste(s2[[1]][2:length(unlist(s2))], collapse = ' ')
+      xmax<-x@bbox[3]
+      xmin<-x@bbox[1]
+      ymax<-x@bbox[4]
+      ymin<-x@bbox[2]
+      #resolution<-0.0008333333
+      
+    }
+  }
+  
+  
+  # (R) set pathes  of SAGA/GRASS modules and binaries depending on OS WINDOWS is set to GIS2GO
+  if(Sys.info()["sysname"] == "Windows"){
+    
+    if (is.null(setDefaultGrass)){
+      grassParams<-searchOSgeo4WGrass()
+      if (nrow(grassParams) == 1) {  
+        grass.gis.base<-setGrassEnv(grassRoot=setDefaultGrass[1],grassVersion=setDefaultGrass[2],installationType = setDefaultGrass[3])
+      } else if (nrow(grassParams) > 1) {
+        cat("You have more than one valid GRASS version\n")
+        print(grassParams)
+        cat("\n")
+        ver<- as.numeric(readline(prompt = "Please choose one:  "))
+        grass.gis.base<-setGrassEnv(grassRoot=grassParams$instDir[[ver]],
+                                    grassVersion=grassParams$version[[ver]], 
+                                    installationType = grassParams$installationType[[ver]] )
+        
+      }
+      
+    }else {
+      grass.gis.base<-setGrassEnv(grassRoot=setDefaultGrass[1],grassVersion=setDefaultGrass[2],installationType = setDefaultGrass[3])  
+    }
+    
+  } else {
+    grass.gis.base<-'/usr/lib/grass72'
+  }
+  
+  #Sys.setenv(.GRASS_CACHE = paste(Sys.getenv("HOME"), "\\.grass_cache",sep = "")) 
+  #################### start with GRASS setup ------------------------------------
+  # create the TEMPORARY GRASS location
+  rgrass7::initGRASS(gisBase=grass.gis.base,
+                     home=tempdir(),
+                     mapset='PERMANENT',
+                     override=TRUE
+  )
+  
+  # assign GRASS projection according to data set
+  rgrass7::execGRASS('g.proj',
+                     flags=c('c','quiet'),
+                     proj4=proj4
+  )
+  
+  # assign GRASS extent
+  if (type=="rst") {
+    rgrass7::execGRASS('g.region',
+                       flags=c('quiet'),
+                       n=as.character(ymax),
+                       s=as.character(ymin),
+                       e=as.character(xmax),
+                       w=as.character(xmin),
+                       res=as.character(resolution)
+    )
+  } else{
+    rgrass7::execGRASS('g.region',
+                       flags=c('quiet'),
+                       n=as.character(ymax),
+                       s=as.character(ymin),
+                       e=as.character(xmax),
+                       w=as.character(xmin)
+                       #res=as.character(resolution)
+    )
+  }
+  return(rgrass7::gmeta() )
+  
+  ## (gdalUtils) check for a valid GDAL binary installation on your system
+  gdalUtils::gdal_setInstallation()
+  valid.install<-!is.null(getOption("gdalUtils_gdalPath"))
+  if (!valid.install){
+    stop('no valid GDAL/OGR found')
+  }else {
+    gdal<-getOption("gdalUtils_gdalPath")[[1]]$version
+  }
+  
+  
+}
+### mapview simple class
+getSimpleClass <- function(obj) {
+  if (class(obj) %in% c("RasterLayer", "RasterStack",
+                        "RasterBrick", "Satellite",
+                        "SpatialGridDataFrame",
+                        "SpatialPixelsDataFrame")) "rst" else "vec"
+}
+
+
+#'@name searchOSgeo4WGrass
+#'
+#'@title search for valid GRASS installations on a given windows drive 
+#'@description  provides a pretty good estimation of valid GRASS installations on your Windows system
+#'@param LW  hard drive letter ie "C:\
+#'@return a dataframe with the GRASS root dir the Version name and the installation type
+#'@author Chris Reudenbach
+#'@export searchOSgeo4WGrass
+#'
+#'@examples
+#'#### Examples how to use RSAGA and GRASS bindings from R
+#'
+#' # get all valid GRASS installation folders and params
+#' grassParam<- searchOSgeo4WGrass()
+
+searchOSgeo4WGrass <- function(DL = "C:")
+{
+  # trys to find a osgeo4w installation on the whole C: disk returns root directory
+  # and version name
+  
+  # recursive dir for grass*.bat returns all version of grass bat files
+  rawGRASS <- system(paste0("cmd.exe /c dir /B /S ", DL, "\\grass*.bat"), intern = T)
+  
+  
+  # trys to identify valid grass installations and their version numbers
+  grassInstallations <- lapply(seq(length(rawGRASS)), function(i)
+  {
+    # convert codetable according to cmd.exe using type
+    batchfileLines <- system(paste0("cmd.exe /c TYPE \"", rawGRASS[i], "\""), 
+                             ignore.stdout = TRUE, intern = T)
+    osgeo4w<-FALSE
+    standAlone<-FALSE
+    rootDir<-''
+    
+    # if the the tag "OSGEO4W" exists set installationType
+    if (length(unique(grep(paste("OSGEO4W", collapse = "|"), batchfileLines, 
+                           value = TRUE))) > 0)
+    {
+      osgeo4w <- TRUE
+      standAlone <- FALSE
+    }
+    # if the the tag "NSIS installer" exists set installationType
+    if (length(unique(grep(paste("NSIS installer", collapse = "|"), batchfileLines, 
+                           value = TRUE))) > 0)
+    {
+      osgeo4w <- FALSE
+      standAlone <- TRUE
+    }
+    
+    ### if installationType is osgeo4w
+    if (osgeo4w)
+    {
+      # grep line with root directory and extract the substring defining GISBASE
+      rootDir <- unique(grep(paste("SET OSGEO4W_ROOT=", collapse = "|"), batchfileLines, 
+                             value = TRUE))
+      if (length(rootDir) > 0) 
+        rootDir <- substr(rootDir, gregexpr(pattern = "=", rootDir)[[1]][1] + 
+                            1, nchar(rootDir))
+      
+      # grep line with the version name and extract it
+      verChar <- unique(grep(paste("\\benv.bat\\b", collapse = "|"), 
+                             batchfileLines,value = TRUE))
+      if (length(rootDir) > 0)
+      {
+        verChar <- substr(verChar, gregexpr(pattern = "\\grass-", 
+                                            verChar)[[1]][1], 
+                          nchar(verChar))
+        verChar <- substr(verChar, 1, gregexpr(pattern = "\\\\", 
+                                               verChar)[[1]][1]-1)
+      }
+      installerType <- "osgeo4W"
+    }
+    
+    ### if installatationtype is standalone
+    if (standAlone)
+    {
+      # grep line containing GISBASE and extract the substring 
+      rootDir <- unique(grep(paste("set GISBASE=", collapse = "|"), batchfileLines, 
+                             value = TRUE))
+      if (length(rootDir) > 0) 
+        rootDir <- substr(rootDir, gregexpr(pattern = "=", rootDir)[[1]][1] + 
+                            1, nchar(rootDir))
+      verChar <- rootDir
+      
+      if (length(rootDir) > 0)
+      {
+        verChar <- substr(verChar, gregexpr(pattern = "GRASS", verChar)[[1]][1], 
+                          nchar(verChar))
+      }
+      installerType <- "NSIS"
+    }
+    
+    # check if the directies really exist
+    if (length(rootDir) > 0)
+    {
+      if (!file.exists(file.path(rootDir)))
+      {
+        exist <- FALSE
+      } else
+      {
+        exist <- TRUE
+      }
+    } else
+    {
+      exist <- FALSE
+    }
+    # write existing GISBASE directories in data frame
+    if (length(rootDir) > 0 & exist)
+    {
+      data.frame(instDir = rootDir, version = verChar, installationType = installerType,stringsAsFactors = FALSE)
+    }
+  })
+  
+  grassInstallations <- do.call("rbind", grassInstallations)
+  
+  return(grassInstallations)
+}
+
+
+#'@name setGrassEnv
+#'
+#'@title  setGrassEnv set environ Params of GRASS
+#'@description  during ar running rsession you will have full access to GRASS7 via the wrapper or command line packages
+#'@param grassRoot  grass root directory i.e. "C:\\OSGEO4~1",
+#'@param grassVersion grass version name i.e. "grass-7.0.5"
+#'@param installationType two options "osgeo4w" and "NSIS"
+#'@param jpgmem jpeg2000 memory allocation default is 1000000
+#'@return set the whole enviroment and returns the gisbase directory for windows
+#'@author Chris Reudenbach
+#'
+#'@export setGrassEnv
+#'
+#'@examples
+#'#### Examples how to use RSAGA and GRASS bindings from R
+#'
+#' # get all valid GRASS installation folders and params
+#' grassParam<- setGrassEnv()
+
+setGrassEnv<- function(grassRoot="C:\\OSGEO4~1",grassVersion="grass-7.0.5",installationType="osgeo4w",jpgmem=1000000){
+  
+  #.GRASS_CACHE <- new.env(FALSE parent=globalenv())
+  if (installationType == "osgeo4w"){
+    Sys.setenv(OSGEO4W_ROOT=grassRoot)
+    # define GISBASE
+    grass.gis.base<-paste0(grassRoot,"\\apps\\grass\\",grassVersion)
+    Sys.setenv(GISBASE=grass.gis.base,envir = .GlobalEnv)
+    assign("SYS", "WinNat", envir=.GlobalEnv)
+    assign("addEXE", ".exe", envir=.GlobalEnv)
+    assign("WN_bat", "", envir=.GlobalEnv)
+    assign("legacyExec", "windows", envir=.GlobalEnv)
+    
+    
+    Sys.setenv(GRASS_PYTHON=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\bin\\python.exe"),envir = .GlobalEnv)
+    Sys.setenv(PYTHONHOME=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\apps\\Python27"),envir = .GlobalEnv)
+    Sys.setenv(PYTHONPATH=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\apps\\grass\\",grassVersion,"\\etc\\python"),envir = .GlobalEnv)
+    Sys.setenv(GRASS_PROJSHARE=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\share\\proj"),envir = .GlobalEnv)
+    Sys.setenv(PROJ_LIB=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\share\\proj"),envir = .GlobalEnv)
+    Sys.setenv(GDAL_DATA=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\share\\gdal"),envir = .GlobalEnv)
+    Sys.setenv(GEOTIFF_CSV=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\share\\epsg_csv"),envir = .GlobalEnv)
+    Sys.setenv(FONTCONFIG_FILE=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\etc\\fonts.conf"),envir = .GlobalEnv)
+    Sys.setenv(JPEGMEM=jpgmem,envir = .GlobalEnv)
+    Sys.setenv(FONTCONFIG_FILE=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\bin\\gdalplugins"),envir = .GlobalEnv)
+    Sys.setenv(GISRC = paste(Sys.getenv("HOME"), "\\.grassrc7",  sep = ""),envir = .GlobalEnv)
+    
+    # set path variable
+    Sys.setenv(PATH=paste0(grass.gis.base,";",
+                           grassRoot,"\\apps\\Python27\\lib\\site-packages\\numpy\\core",";",
+                           grassRoot,"\\apps\\grass\\",grassVersion,"\\bin",";",
+                           grassRoot,"\\apps\\grass\\",grassVersion,"\\lib",";",
+                           grassRoot,"\\apps\\grass\\",grassVersion,"\\etc",";",
+                           grassRoot,"\\apps\\grass\\",grassVersion,"\\etc\\python",";",
+                           grassRoot,"\\apps\\Python27\\Scripts",";",
+                           grassRoot,"\\bin",";",
+                           grassRoot,"\\apps",";",
+                           paste0(Sys.getenv("WINDIR"),"/WBem"),";",
+                           Sys.getenv("PATH")),envir = .GlobalEnv)
+    
+    # get list of all tools
+    system(paste0(grassRoot,"/bin/o-help.bat"))
+    
+  } 
+  # for the NSIS windows installer versions
+  else {
+    
+    Sys.setenv(GRASS_ROOT=grassRoot)
+    # define GISBASE
+    grass.gis.base<-grassRoot
+    Sys.setenv(GISBASE=grass.gis.base,envir = .GlobalEnv)
+    assign("SYS", "WinNat", envir=.GlobalEnv)
+    assign("addEXE", ".exe", envir=.GlobalEnv)
+    assign("WN_bat", "", envir=.GlobalEnv)
+    assign("legacyExec", "windows", envir=.GlobalEnv)
+    
+    
+    Sys.setenv(GRASS_PYTHON=paste0(Sys.getenv("GRASS_ROOT"),"\\bin\\python.exe"),envir = .GlobalEnv)
+    Sys.setenv(PYTHONHOME=paste0(Sys.getenv("GRASS_ROOT"),"\\apps\\Python27"),envir = .GlobalEnv)
+    Sys.setenv(PYTHONPATH=paste0(Sys.getenv("GRASS_ROOT"),"\\apps\\grass\\",grassVersion,"\\etc\\python"),envir = .GlobalEnv)
+    Sys.setenv(GRASS_PROJSHARE=paste0(Sys.getenv("GRASS_ROOT"),"\\share\\proj"),envir = .GlobalEnv)
+    Sys.setenv(PROJ_LIB=paste0(Sys.getenv("GRASS_ROOT"),"\\share\\proj"),envir = .GlobalEnv)
+    Sys.setenv(GDAL_DATA=paste0(Sys.getenv("GRASS_ROOT"),"\\share\\gdal"),envir = .GlobalEnv)
+    Sys.setenv(GEOTIFF_CSV=paste0(Sys.getenv("GRASS_ROOT"),"\\share\\epsg_csv"),envir = .GlobalEnv)
+    Sys.setenv(FONTCONFIG_FILE=paste0(Sys.getenv("GRASS_ROOT"),"\\etc\\fonts.conf"),envir = .GlobalEnv)
+    Sys.setenv(JPEGMEM=jpgmem,envir = .GlobalEnv)
+    Sys.setenv(FONTCONFIG_FILE=paste0(Sys.getenv("GRASS_ROOT"),"\\bin\\gdalplugins"),envir = .GlobalEnv)
+    Sys.setenv(GISRC = paste(Sys.getenv("HOME"), "\\.grassrc7",  sep = ""),envir = .GlobalEnv)
+    
+    # set path variable
+    Sys.setenv(PATH=paste0(grass.gis.base,";",
+                           grassRoot,"\\apps\\Python27\\lib\\site-packages\\numpy\\core",";",
+                           grassRoot,"\\apps\\grass\\",grassVersion,"\\bin",";",
+                           grassRoot,"\\apps\\grass\\",grassVersion,"\\lib",";",
+                           grassRoot,"\\apps\\grass\\",grassVersion,"\\etc",";",
+                           grassRoot,"\\apps\\grass\\",grassVersion,"\\etc\\python",";",
+                           grassRoot,"\\apps\\Python27\\Scripts",";",
+                           grassRoot,"\\bin",";",
+                           grassRoot,"\\apps",";",
+                           paste0(Sys.getenv("WINDIR"),"/WBem"),";",
+                           Sys.getenv("PATH")),envir = .GlobalEnv)
+    
+  }
+  
+  return(grass.gis.base)
+}
+
+
