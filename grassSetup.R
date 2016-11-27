@@ -1,33 +1,45 @@
-#'@name initGrass4R 
-#'@title initializes enviroment for using rgrass7 with GRASS 
-#'@description Function that initializes environment and pathes for GRASS7. *NOTE* you probably have to customize some settings according to your personal installation folders.
-#'@details The concept is very straightforward but for an all days usage pretty helpful. You need to provide a GDAL conform raster file, a \link{raster} object or you may download SRTM data with \link{getGeoData}. This settings will be used to initialize a temporary but static \href{https://cran.r-project.org/web/packages/rgrass7}{rgrass7} environment. Additionally \href{https://cran.r-project.org/web/packages/RSAGA}{RSAGA} and \href{https://cran.r-project.org/web/packages/gdalUtils}{gdalUtils} are initialized and checked. During the rsession you will have full access to GRASS7 via the wrapper packages. .
-#'@usage initGrass4R()
+#'@name initGrass4R '@title initializes enviroment for using \link{rgrass7} with GRASS 
+#'@description Function that initializes environment and pathes for GRASS7x. '
+#'Despite the GRASS GIS seup is performed by the initGRASS() funtion of the
+#'\link{rgrass7} package, there are some workarounds necessary. 
+#'While initGRASS works fine for known pathes and environmental varibles, one 
+#'will find that the integration of Windows based GRASS especially as provided 
+#'by OSGeo4W or the usage of parallel installations could be cumbersome. 
+#'initGrass4R trys to find valid GRASS binaries by analyzing the initial GRASS script files.
+#'If necessary it set the system variables and finally it initialize GRASS for R with user
+#'provided  valid raster or sp object.\cr\cr 
+#'*NOTE* If you have more than one valid installation you will be ask to select.
+#'@details The concept is very straightforward but for an all days usage pretty helpful. 
+#'You need to provide a \link{raster}/\link{sp} spatial object which is correct georeferenced
+#'The resulting params will be used to initialize a temporary but static 
+#'\href{https://cran.r-project.org/web/packages/rgrass7}{rgrass7}
+#'environment. During the rsession you will have full access to
+#'GRASS7 via the \link{rgrass7} wrapper package.
+#'@usage initGrass4R() 
 #'@param x raster or sp object 
-#'@param setDefaultGrass default = NULL wil force a search for GRASS You may provide a valid combination as c("C:\\OSGeo4W64","grass-7.0.5","osgeo4w")
-#'@author Chris Reudenbach
+#'@param setDefaultGrass default = NULL will force a search for GRASS You
+#'may provide a valid combination as c("C:\\OSGeo4W64","grass-7.0.5","osgeo4w") 
+#'@author Chris Reudenbach 
 #'@return initGrass4R initializes the usage of GRASS7.
 #'@export initGrass4R 
 #'
-#'@examples
-#'####  GRASS bindings from R
-#'
-#' # get meuse data
-# ' data(meuse)
-# ' coordinates(meuse) <- ~x+y
-# ' proj4string(meuse) <- CRS("+init=epsg:28992")
-# '
-# ' # automatic search and find of GRASS binaries if more than one you have to choose.
-# ' initGrass4R(meuse)
+#'@examples '####  GRASS bindings from R ' ' # get meuse
+#' data(meuse) 
+#' coordinates(meuse) <- ~x+y 
+#' proj4string(meuse) <-CRS("+init=epsg:28992") 
 #' 
-#' # assuming a typical standalone installation
-#' initGrass4R(meuse,c("C:\\Program Files\\GRASS GIS 7.0.5","GRASS GIS 7.0.5","NSIS"))
+#' # automatic search and find of GRASS binaries if 
+#' # more than one you have to choose. 
+#' initGrass4R(meuse) 
+#' 
+#' # assuming a typical standalone installation 
+#' initGrass4R(meuse,c("C:\\Program Files\\GRASS GIS7.0.5","GRASS GIS 7.0.5","NSIS")) 
 #' 
 #' # assuming a typical OSGeo4W installation
 #' initGrass4R(meuse,c("C:\\OSGeo4W64","grass-7.0.5","osgeo4W"))
 #' 
-#' #c("/usr/bin","grass72")
-#' 
+#' # string for Linux c("/usr/bin","grass72") '
+
 initGrass4R <- function(x=NULL,setDefaultGrass=NULL,SP = NULL){
   if (is.null(x)) {
     stop("no information from raster data neither rasterParam ")
@@ -101,7 +113,7 @@ return(rgrass7::gmeta())
 }
 
 #'@name getGrassParams4W
-#'@title initializes enviroment for using rgrass7 with GRASS 
+#'@title initializes enviroment for using \link{rgrass7} with GRASS 
 #'@description Function that initializes environment and pathes for GRASS7 .*NOTE* you probably have to customize some settings according to your personal installation folders.
 #'@details The concept is very straightforward but for an all days usage pretty helpful. You need to provide a GDAL conform raster file, a \link{raster} object or you may download SRTM data with \link{getGeoData}. This settings will be used to initialize a temporary but static \href{https://cran.r-project.org/web/packages/rgrass7}{rgrass7} environment. Additionally \href{https://cran.r-project.org/web/packages/RSAGA}{RSAGA} and \href{https://cran.r-project.org/web/packages/gdalUtils}{gdalUtils} are initialized and checked. During the rsession you will have full access to GRASS7 via the wrapper packages. .
 #'@usage getGrassParams4W()
@@ -243,7 +255,7 @@ searchOSgeo4WGrass <- function(DL = "C:"){
 
 
 #'@name getGrassParams4X
-#'@title initializes enviroment for using rgrass7 with GRASS 
+#'@title initializes enviroment for using \link{rgrass7} with GRASS 
 #'@description Function that initializes environment and pathes for GRASS7 .*NOTE* you probably have to customize some settings according to your personal installation folders.
 #'@details The concept is very straightforward but for an all days usage pretty helpful. You need to provide a GDAL conform raster file, a \link{raster} object or you may download SRTM data with \link{getGeoData}. This settings will be used to initialize a temporary but static \href{https://cran.r-project.org/web/packages/rgrass7}{rgrass7} environment. Additionally \href{https://cran.r-project.org/web/packages/RSAGA}{RSAGA} and \href{https://cran.r-project.org/web/packages/gdalUtils}{gdalUtils} are initialized and checked. During the rsession you will have full access to GRASS7 via the wrapper packages. .
 #'@usage getGrassParams4X()
