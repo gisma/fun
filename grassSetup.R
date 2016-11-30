@@ -36,7 +36,7 @@
 #' initGrass4R(meuse,c("C:\\Program Files\\GRASS GIS7.0.5","GRASS GIS 7.0.5","NSIS")) 
 #' 
 #' # assuming a typical OSGeo4W installation
-#' initGrass4R(meuse,c("C:\\OSGeo4W64","grass-7.0.5","osgeo4W"))
+#' initGrass4R(meuse,c("C:\\OSGeo4W64","grass-7.0.5","osgeo4w"))
 #' 
 #' # string for Linux c("/usr/bin","grass72") '
 
@@ -131,7 +131,7 @@ return(rgrass7::gmeta())
 #' getGrassParams4W(c("C:\\Program Files\\GRASS GIS 7.0.5","GRASS GIS 7.0.5","NSIS"))
 #' 
 #' # assuming a typical OSGeo4W installation
-#' getGrassParams4W(c("C:\\OSGeo4W64","grass-7.0.5","osgeo4W"))
+#' getGrassParams4W(c("C:\\OSGeo4W64","grass-7.0.5","osgeo4w"))
  
 getGrassParams4W <- function(setDefaultGrass=NULL,DL="C:"){
   
@@ -215,7 +215,7 @@ searchOSgeo4WGrass <- function(DL = "C:"){
         verChar <- substr(verChar, gregexpr(pattern = "\\grass-", verChar)[[1]][1], nchar(verChar))
         verChar <- substr(verChar, 1, gregexpr(pattern = "\\\\", verChar)[[1]][1]-1)
       }
-      installerType <- "osgeo4W"
+      installerType <- "osgeo4w"
     }
     
     ### if installatationtype is standalone
@@ -378,7 +378,7 @@ setGrassEnv4W<- function(grassRoot="C:\\OSGEO4~1",grassVersion="grass-7.0.5",ins
     Sys.setenv(PYTHONHOME=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\apps\\Python27"),envir = .GlobalEnv)
     Sys.setenv(PYTHONPATH=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\apps\\grass\\",grassVersion,"\\etc\\python"),envir = .GlobalEnv)
     Sys.setenv(GRASS_PROJSHARE=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\share\\proj"),envir = .GlobalEnv)
-    Sys.setenv(PROJ_LIB=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\share\\proj"),envir = .GlobalEnv)
+    Sys.setenv(PROJ_LIB=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\apps\\grass\\",grassVersion,"\\etc\\proj"),envir = .GlobalEnv)
     Sys.setenv(GDAL_DATA=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\share\\gdal"),envir = .GlobalEnv)
     Sys.setenv(GEOTIFF_CSV=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\share\\epsg_csv"),envir = .GlobalEnv)
     Sys.setenv(FONTCONFIG_FILE=paste0(Sys.getenv("OSGEO4W_ROOT"),"\\etc\\fonts.conf"),envir = .GlobalEnv)
